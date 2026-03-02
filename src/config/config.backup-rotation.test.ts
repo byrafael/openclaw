@@ -10,6 +10,32 @@ import {
 import { withTempHome } from "./test-helpers.js";
 import type { OpenClawConfig } from "./types.js";
 
+const NON_ENFORCED_PERMISSION_MODES = [0o600, 0o644, 0o666, 0o777] as const;
+
+async function canEnforceOwnerOnlyPermissions(configPath: string): Promise<boolean> {
+  const probePath = `${configPath}.permissions-probe-${process.pid}-${Date.now()}`;
+  try {
+    await fs.writeFile(probePath, "probe", { mode: 0o666 });
+    await fs.chmod(probePath, 0o600);
+    const stat = await fs.stat(probePath);
+    return (stat.mode & 0o777) === 0o600;
+  } catch {
+    return false;
+  } finally {
+    await fs.unlink(probePath).catch(() => {
+      // best-effort
+    });
+  }
+}
+
+function expectHardenedMode(mode: number, shouldEnforce: boolean) {
+  if (shouldEnforce) {
+    expect(mode).toBe(0o600);
+    return;
+  }
+  expect(NON_ENFORCED_PERMISSION_MODES).toContain(mode);
+}
+
 describe("config backup rotation", () => {
   it("keeps a 5-deep backup ring for config writes", async () => {
     await withTempHome(async () => {
@@ -62,6 +88,7 @@ describe("config backup rotation", () => {
         throw new Error("Expected OPENCLAW_STATE_DIR to be set by withTempHome");
       }
       const configPath = path.join(stateDir, "openclaw.json");
+      const canEnforce = await canEnforceOwnerOnlyPermissions(configPath);
 
       // Create .bak and .bak.1 with permissive mode
       await fs.writeFile(`${configPath}.bak`, "secret", { mode: 0o644 });
@@ -72,9 +99,9 @@ describe("config backup rotation", () => {
       const bakStat = await fs.stat(`${configPath}.bak`);
       const bak1Stat = await fs.stat(`${configPath}.bak.1`);
 
-      // Owner-only permissions (0o600)
-      expect(bakStat.mode & 0o777).toBe(0o600);
-      expect(bak1Stat.mode & 0o777).toBe(0o600);
+      // Owner-only permissions (0o600) when the underlying filesystem honors chmod.
+      expectHardenedMode(bakStat.mode & 0o777, canEnforce);
+      expectHardenedMode(bak1Stat.mode & 0o777, canEnforce);
     });
   });
 
@@ -121,6 +148,7 @@ describe("config backup rotation", () => {
         throw new Error("Expected OPENCLAW_STATE_DIR to be set by withTempHome");
       }
       const configPath = path.join(stateDir, "openclaw.json");
+      const canEnforce = await canEnforceOwnerOnlyPermissions(configPath);
       await fs.writeFile(configPath, JSON.stringify({ token: "secret" }), { mode: 0o600 });
       await fs.writeFile(`${configPath}.bak`, "previous", { mode: 0o644 });
       await fs.writeFile(`${configPath}.bak.orphan`, "old");
@@ -135,7 +163,7 @@ describe("config backup rotation", () => {
       await expect(fs.readFile(`${configPath}.bak.1`, "utf-8")).resolves.toBe("previous");
       // Mode hardening still applies.
       const primaryBackupStat = await fs.stat(`${configPath}.bak`);
-      expect(primaryBackupStat.mode & 0o777).toBe(0o600);
+      expectHardenedMode(primaryBackupStat.mode & 0o777, canEnforce);
       // Out-of-ring orphan gets pruned.
       await expect(fs.stat(`${configPath}.bak.orphan`)).rejects.toThrow();
     });
