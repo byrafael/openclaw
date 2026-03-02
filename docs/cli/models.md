@@ -71,7 +71,7 @@ openclaw models auth setup-token
 openclaw models auth paste-token
 ```
 
-`models auth login` runs the built-in OpenAI Codex OAuth flow.
+`models auth login` prompts you to select a provider (built-in OpenAI Codex or an installed plugin provider).
 
 Use `models auth login --provider <id>` for provider plugin auth flows
 (OAuth/API key). Use `openclaw plugins list` to see installed plugin providers.
