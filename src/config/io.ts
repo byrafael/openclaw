@@ -15,7 +15,7 @@ import {
 } from "../infra/shell-env.js";
 import { VERSION } from "../version.js";
 import { DuplicateAgentDirError, findDuplicateAgentDirs } from "./agent-dirs.js";
-import { rotateConfigBackups } from "./backup-rotation.js";
+import { hardenBackupPermissions, rotateConfigBackups } from "./backup-rotation.js";
 import {
   applyCompactionDefaults,
   applyContextPruningDefaults,
@@ -1245,6 +1245,7 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
         await deps.fs.promises.copyFile(configPath, `${configPath}.bak`).catch(() => {
           // best-effort
         });
+        await hardenBackupPermissions(configPath, deps.fs.promises);
       }
 
       try {

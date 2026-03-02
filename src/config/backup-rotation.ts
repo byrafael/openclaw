@@ -1,4 +1,5 @@
 export const CONFIG_BACKUP_COUNT = 5;
+const CONFIG_BACKUP_MODE = 0o600;
 
 export async function rotateConfigBackups(
   configPath: string,
@@ -23,4 +24,23 @@ export async function rotateConfigBackups(
   await ioFs.rename(backupBase, `${backupBase}.1`).catch(() => {
     // best-effort
   });
+}
+
+export async function hardenBackupPermissions(
+  configPath: string,
+  ioFs: {
+    chmod: (path: string, mode: number) => Promise<void>;
+  },
+): Promise<void> {
+  const backupBase = `${configPath}.bak`;
+
+  await ioFs.chmod(backupBase, CONFIG_BACKUP_MODE).catch(() => {
+    // best-effort
+  });
+
+  for (let index = 1; index < CONFIG_BACKUP_COUNT; index += 1) {
+    await ioFs.chmod(`${backupBase}.${index}`, CONFIG_BACKUP_MODE).catch(() => {
+      // best-effort
+    });
+  }
 }
