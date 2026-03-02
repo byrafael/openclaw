@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { OpenClawConfig } from "./config.js";
 import { migrateLegacyConfig, validateConfigObject } from "./config.js";
+import { resolveTelegramPreviewStreamMode } from "./discord-preview-streaming.js";
 import { WHISPER_BASE_AUDIO_MODEL } from "./legacy-migrate.test-helpers.js";
 
 function getLegacyRouting(config: unknown) {
@@ -472,7 +473,7 @@ describe("legacy config detection", () => {
         expect(channel?.dmPolicy, provider).toBe("pairing");
         expect(channel?.groupPolicy, provider).toBe("allowlist");
         if (provider === "telegram") {
-          expect(channel?.streaming, provider).toBe("off");
+          expect(channel?.streaming, provider).toBe(resolveTelegramPreviewStreamMode({}));
           expect(channel?.streamMode, provider).toBeUndefined();
         }
       }
