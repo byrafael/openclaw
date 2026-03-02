@@ -65,7 +65,6 @@ describe("config backup rotation", () => {
         throw new Error("Expected OPENCLAW_STATE_DIR to be set by withTempHome");
       }
       const configPath = path.join(stateDir, "openclaw.json");
-      const canEnforce = await canEnforceOwnerOnlyPermissions(configPath);
 
       // Create .bak and .bak.1 with permissive mode
       await fs.writeFile(`${configPath}.bak`, "secret", { mode: 0o644 });
@@ -124,7 +123,6 @@ describe("config backup rotation", () => {
         throw new Error("Expected OPENCLAW_STATE_DIR to be set by withTempHome");
       }
       const configPath = path.join(stateDir, "openclaw.json");
-      const canEnforce = await canEnforceOwnerOnlyPermissions(configPath);
       await fs.writeFile(configPath, JSON.stringify({ token: "secret" }), { mode: 0o600 });
       await fs.writeFile(`${configPath}.bak`, "previous", { mode: 0o644 });
       await fs.writeFile(`${configPath}.bak.orphan`, "old");
